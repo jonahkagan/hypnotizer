@@ -1,11 +1,12 @@
-# Om SVG Tests
+# Hypotrochoid Hypnotizer
 
-A simple app for playing with
-[om](https://github.com/swannodette/om). You can try the demo
-[here](https://jonase.github.com/om-svg-tests/).
+An exploration of hypotrochoid patterns with animation. Inspired by http://www.subblue.com/projects/guilloche.
+
+Check it out at http://jonahkagan.github.io/hypnotizer.
 
 # License
 
-Copyright &copy; 2014 Jonas Enlund
+Copyright &copy; 2014 Jonah Kagan
+Forked from Jonas Enlund's [om-svg-tests](https://github.com/jonase/om-svg-tests/).
 
 Distributed under the Eclipse Public License, the same as Clojure.
