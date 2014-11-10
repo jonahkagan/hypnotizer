@@ -1,4 +1,4 @@
-(ns om-svg-tests.core
+(ns hypnotizer.core
   (:require [clojure.string :as string :refer [join]]
             [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]
@@ -10,17 +10,19 @@
 (def TAU (* 2 js/Math.PI))
 
 (def hypotrochoid-params
-  {:scale {:min 0 :max 15 :step 0.5}
-   :steps {:min 10 :max 2000 :step 1}
-   :thickness {:min 1 :max 10 :step 1}
-   :big-radius {:min 0 :max 100 :step 1}
-   :small-radius {:min 0 :max 10 :step 0.05}
-   :distance {:min 0 :max 100 :step 1}})
+  {:scale {:min 0 :max 20}
+   :steps {:min 10 :max 2000}
+   :thickness {:min 0.1 :max 5}
+   :opacity {:min 0 :max 1}
+   :big-radius {:min 0 :max 100}
+   :small-radius {:min 0 :max 10}
+   :distance {:min 0 :max 100}})
 
 (def app-state (atom {:scale 4
                       :steps 970
                       :thickness 1
-                      :big-radius 50
+                      :opacity 0.5
+                      :big-radius 48
                       :small-radius 0.25
                       :distance 33}))
 
@@ -61,7 +63,7 @@
         n small-radius]
     (/ n (gcd n d))))
 
-(defn curve-view [params owner]
+(defn curve-view [params owner {:keys [width height]}]
   (reify om/IRender
     (render [this]
       (let [period (hypotrochoid-period params)
@@ -70,56 +72,52 @@
             pts (for [t (range 0 total-radians step)]
                         (-> (hypotrochoid-pt params t)
                           (scale-pt (params :scale))
-                          (move-pt 500 500)))]
-        (println params period step)
+                          (move-pt (/ width 2) (/ height 2))))]
         (dom/g nil
-               (dom/path 
+               (dom/path
                  #js {:d (path-string pts)
                       :fill "none"
-                      :stroke "black"
+                      :stroke "white"
+                      :style #js {:stroke-opacity (str (* (params :opacity) 100) "%")}
                       :strokeWidth (params :thickness)}))))))
 
-(defn slider-view [params owner {:keys [label min max]}]
+(defn slider-view [params owner {:keys [label min max width]}]
   (reify
     om/IInitState
     (init-state [_]
       {:animating 0})
     om/IWillUpdate
     (will-update [this _ prev-state]
-      (println "prev state" prev-state)
       (when (not (zero? (prev-state :animating)))
-        (js/setTimeout (fn []
-                         (println "timeout")
-                         (let [{:keys [max min step]} (hypotrochoid-params label)]
-                           (om/transact! params label
-                            (fn [val]
-                             (cond
-                               (= val min) (om/set-state! owner :animating -1)
-                               (= val max) (om/set-state! owner :animating 1))
-                             (+ val (* (prev-state :animating) step)))
-                                         )))
-                       80)))
+        (js/setTimeout
+          (fn []
+            (om/transact! params label
+              (fn [val]
+                (cond
+                  (<= val min) (om/set-state! owner :animating 1)
+                  (>= val max) (om/set-state! owner :animating -1))
+                (+ val (* (prev-state :animating) (/ (- max min) 200))))))
+          70)))
     om/IRenderState
     (render-state [this {:keys [animating]}]
       (let [value (params label)]
-        (println label value min max)
-        (dom/div nil
-         (dom/span nil (name label))
-         (dom/input
-           #js {:style #js {:width "500"}
+        (dom/tr nil
+         (dom/td #js {:style #js {:text-align "right"}} (name label))
+         (dom/td nil (dom/input
+           #js {:style #js {:width width}
                 :type "range"
-                :min (get-in hypotrochoid-params [label :min])
-                :max (get-in hypotrochoid-params [label :max])
-                :step (get-in hypotrochoid-params [label :step])
+                :min min
+                :max max
+                :step (/ (- max min) 200)
                 :value value
                 :onChange
                 (fn [e]
-                  (println "change" (.. e -target -value))
-                  (om/update! params label (js/parseFloat (.. e -target -value) )))})
-         (dom/span nil value)
-         (dom/button #js {:onClick #(om/set-state! owner :animating
+                  (om/update! params label (js/parseFloat (.. e -target -value))))}))
+         (dom/td #js {:style #js {:min-width 40}}
+                 (subs (str value) 0 5))
+         (dom/td nil (dom/button #js {:onClick #(om/set-state! owner :animating
                                                    (if (zero? animating) 1 0))}
-                     (if (zero? animating) "Animate" "Stop animating")))))))
+                     (if (zero? animating) "Animate" "Stop"))))))))
 
 (defn pattern-view [app owner]
   (reify
@@ -130,12 +128,19 @@
     ;    75))
     om/IRender
     (render [this]
+      (let [width (.-innerWidth js/window)
+            height (.-innerHeight js/window)]
       (dom/div nil
-        (apply dom/div nil
-          (for [[k v] app]
-            (om/build slider-view app {:opts {:label k}})))
-        (dom/svg #js {:width "100%" :height "100%"}
-                 (om/build curve-view app))))))
+        (apply dom/table #js {:id "params"}
+          (for [[param _] app]
+            (let [{:keys [min max]} (hypotrochoid-params param)]
+              (om/build slider-view app {:opts {:label param
+                                                :min min
+                                                :max max
+                                                :width (/ width 5)}}))))
+        (dom/svg #js {:width width :height height}
+                 (om/build curve-view app {:opts {:width width
+                                                  :height height}})))))))
 
 (om/root
   pattern-view

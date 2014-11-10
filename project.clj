@@ -1,4 +1,4 @@
-(defproject om-svg-tests "0.1.0-SNAPSHOT"
+(defproject hypnotizer "0.1.0-SNAPSHOT"
   :description "FIXME: write this!"
   :url "http://example.com/FIXME"
 
@@ -12,10 +12,10 @@
   :source-paths ["src"]
 
   :cljsbuild { 
-    :builds [{:id "om-svg-tests"
+    :builds [{:id "hypnotizer"
               :source-paths ["src"]
               :compiler {
-                :output-to "om-svg-tests.js"
+                :output-to "hypnotizer.js"
                 :output-dir "out"
                 :optimizations :none
                 :source-map true}}]})
